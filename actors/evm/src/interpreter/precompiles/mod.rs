@@ -14,6 +14,7 @@ mod bls12_381;
 mod bls_util;
 mod evm;
 mod fvm;
+mod p256;
 
 use bls12_381::{
     bls12_g1add, bls12_g1msm, bls12_g2add, bls12_g2msm, bls12_map_fp_to_g1, bls12_map_fp2_to_g2,
@@ -21,6 +22,7 @@ use bls12_381::{
 };
 use evm::{blake2f, ec_add, ec_mul, ec_pairing, ec_recover, identity, modexp, ripemd160, sha256};
 use fvm::{call_actor, call_actor_id, get_randomness, lookup_delegated_address, resolve_address};
+use p256::p256_verify;
 
 type PrecompileFn<RT> = fn(&mut System<RT>, &[u8], PrecompileContext) -> PrecompileResult;
 pub type PrecompileResult = Result<Vec<u8>, PrecompileError>;
@@ -38,10 +40,21 @@ impl<RT: Runtime, const N: usize> PrecompileTable<RT, N> {
 }
 
 pub fn is_reserved_precompile_address(addr: &EthAddress) -> bool {
-    let [prefix, middle @ .., index] = addr.0;
-    (prefix == 0x00 || prefix == NATIVE_PRECOMPILE_ADDRESS_PREFIX)
-        && middle == [0u8; 18]
-        && index > 0
+    let bytes = addr.0;
+    let prefix = bytes[0];
+    if !(prefix == 0x00 || prefix == NATIVE_PRECOMPILE_ADDRESS_PREFIX) {
+        return false;
+    }
+    // 1-byte index case: last byte > 0 and bytes[1..19] all zeros.
+    if bytes[19] > 0 {
+        return bytes[1..19] == [0u8; 18];
+    }
+    // 2-byte index case (EVM-only): bytes[1..18] zeros and second-to-last byte > 0.
+    if prefix == 0x00 {
+        return bytes[1..18] == [0u8; 17] && bytes[18] > 0;
+    }
+    // Native (0xFE) does not support 2-byte indices.
+    false
 }
 
 pub struct Precompiles<RT>(PhantomData<RT>);
@@ -80,6 +93,15 @@ impl<RT: Runtime> Precompiles<RT> {
     ]);
 
     fn lookup_precompile(addr: &EthAddress) -> Option<PrecompileFn<RT>> {
+        // Special-case RIP-7212 precompile at 0x...0100
+        if addr.0[0] == 0x00
+            && addr.0[1..18] == [0u8; 17]
+            && addr.0[18] == 0x01
+            && addr.0[19] == 0x00
+        {
+            return Some(p256_verify::<RT>);
+        }
+
         let [prefix, _m @ .., index] = addr.0;
         if is_reserved_precompile_address(addr) {
             let index = index as usize - 1;
@@ -215,6 +237,13 @@ mod test {
         let addr = EthAddress(hex_literal::hex!("ff00000000000000000000000000000000000001"));
         assert!(!Precompiles::<MockRuntime>::is_precompile(&addr));
         assert!(!is_reserved_precompile_address(&addr));
+    }
+
+    #[test]
+    fn is_rip_7212_precompile() {
+        let addr = EthAddress(hex_literal::hex!("0000000000000000000000000000000000000100"));
+        assert!(Precompiles::<MockRuntime>::is_precompile(&addr));
+        assert!(is_reserved_precompile_address(&addr));
     }
 
     #[test]

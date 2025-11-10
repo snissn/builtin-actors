@@ -15,6 +15,9 @@ exclude = ["/precompile-testdata", "/tests/measurements", "/tests/contracts"]
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
+p256 = { version = "0.13", features = ["ecdsa"], default-features = true }
+ecdsa = { version = "0.16" }
+
 fil_actors_runtime = { workspace = true }
 fvm_shared = { workspace = true }
 fvm_ipld_kamt = { workspace = true }
