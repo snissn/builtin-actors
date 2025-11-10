@@ -150,6 +150,203 @@ mod tests {
         matches!(err, PrecompileError::IncorrectInputSize);
     }
 
+    #[test]
+    fn invalid_r_zero() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(99);
+        let sk = SigningKey::random(&mut rng);
+        let vk = VerifyingKey::from(&sk);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        let pk = vk.to_encoded_point(false);
+        let (x, y) = (pk.x().unwrap(), pk.y().unwrap());
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&[0u8; 32]); // r = 0
+        input.extend_from_slice(&sig.s().to_bytes());
+        input.extend_from_slice(x);
+        input.extend_from_slice(y);
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
+    #[test]
+    fn invalid_s_zero() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(100);
+        let sk = SigningKey::random(&mut rng);
+        let vk = VerifyingKey::from(&sk);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        let pk = vk.to_encoded_point(false);
+        let (x, y) = (pk.x().unwrap(), pk.y().unwrap());
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&sig.r().to_bytes());
+        input.extend_from_slice(&[0u8; 32]); // s = 0
+        input.extend_from_slice(x);
+        input.extend_from_slice(y);
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
+    #[test]
+    fn invalid_r_ge_n() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(101);
+        let sk = SigningKey::random(&mut rng);
+        let vk = VerifyingKey::from(&sk);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        // r >= n: use 0xff..ff as a guaranteed out-of-range value
+        let r_bad = [0xffu8; 32];
+
+        let pk = vk.to_encoded_point(false);
+        let (x, y) = (pk.x().unwrap(), pk.y().unwrap());
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&r_bad);
+        input.extend_from_slice(&sig.s().to_bytes());
+        input.extend_from_slice(x);
+        input.extend_from_slice(y);
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
+    #[test]
+    fn invalid_s_ge_n() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(102);
+        let sk = SigningKey::random(&mut rng);
+        let vk = VerifyingKey::from(&sk);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        let s_bad = [0xffu8; 32];
+
+        let pk = vk.to_encoded_point(false);
+        let (x, y) = (pk.x().unwrap(), pk.y().unwrap());
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&sig.r().to_bytes());
+        input.extend_from_slice(&s_bad);
+        input.extend_from_slice(x);
+        input.extend_from_slice(y);
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
+    #[test]
+    fn invalid_pubkey_zero_zero() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(103);
+        let sk = SigningKey::random(&mut rng);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&sig.r().to_bytes());
+        input.extend_from_slice(&sig.s().to_bytes());
+        input.extend_from_slice(&[0u8; 32]); // x = 0
+        input.extend_from_slice(&[0u8; 32]); // y = 0
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
+    #[test]
+    fn invalid_pubkey_off_curve() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(104);
+        let sk = SigningKey::random(&mut rng);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        let mut x = [0u8; 32];
+        x[31] = 1; // x=1
+        let y = [0u8; 32]; // y=0
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&sig.r().to_bytes());
+        input.extend_from_slice(&sig.s().to_bytes());
+        input.extend_from_slice(&x);
+        input.extend_from_slice(&y);
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
+    #[test]
+    fn invalid_pubkey_coords_ge_p() {
+        let rt = MockRuntime::default();
+        rt.in_call.replace(true);
+        let mut sys = crate::interpreter::System::create(&rt).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(105);
+        let sk = SigningKey::random(&mut rng);
+
+        let mut hash = [0u8; 32];
+        rng.fill_bytes(&mut hash);
+        let sig: p256::ecdsa::Signature = PrehashSigner::sign_prehash(&sk, &hash).unwrap();
+
+        // x and/or y >= p: use 0xff..ff to ensure invalid
+        let x = [0xffu8; 32];
+        let y = [0xffu8; 32];
+
+        let mut input = Vec::with_capacity(160);
+        input.extend_from_slice(&hash);
+        input.extend_from_slice(&sig.r().to_bytes());
+        input.extend_from_slice(&sig.s().to_bytes());
+        input.extend_from_slice(&x);
+        input.extend_from_slice(&y);
+
+        let err = p256_verify::<MockRuntime>(&mut sys, &input, default_ctx()).err().unwrap();
+        matches!(err, PrecompileError::InvalidInput);
+    }
+
     fn default_ctx() -> PrecompileContext {
         PrecompileContext { call_type: crate::interpreter::CallKind::StaticCall, gas: 0u8.into(), value: 0u8.into() }
     }
