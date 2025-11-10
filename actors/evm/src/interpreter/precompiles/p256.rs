@@ -1,4 +1,7 @@
-use crate::interpreter::{precompiles::{PrecompileContext, PrecompileResult}, System};
+use crate::interpreter::{
+    System,
+    precompiles::{PrecompileContext, PrecompileResult},
+};
 use fil_actors_runtime::runtime::Runtime;
 
 // p256 + ecdsa
@@ -18,7 +21,11 @@ use p256::ecdsa::{self, Signature, VerifyingKey};
 ///
 /// - On success: 32-byte big-endian integer 1
 /// - On failure: empty
-pub fn p256_verify<RT: Runtime>(_: &mut System<RT>, input: &[u8], _: PrecompileContext) -> PrecompileResult {
+pub fn p256_verify<RT: Runtime>(
+    _: &mut System<RT>,
+    input: &[u8],
+    _: PrecompileContext,
+) -> PrecompileResult {
     if input.len() != 160 {
         return Ok(Vec::new());
     }
@@ -73,8 +80,8 @@ pub fn p256_verify<RT: Runtime>(_: &mut System<RT>, input: &[u8], _: PrecompileC
 mod tests {
     use super::*;
     use fil_actors_runtime::test_utils::MockRuntime;
-    use p256::ecdsa::signature::hazmat::PrehashSigner;
     use p256::ecdsa::SigningKey;
+    use p256::ecdsa::signature::hazmat::PrehashSigner;
     use rand::rngs::StdRng;
     use rand::{RngCore, SeedableRng};
 
@@ -395,6 +402,10 @@ mod tests {
     }
 
     fn default_ctx() -> PrecompileContext {
-        PrecompileContext { call_type: crate::interpreter::CallKind::StaticCall, gas: 0u8.into(), value: 0u8.into() }
+        PrecompileContext {
+            call_type: crate::interpreter::CallKind::StaticCall,
+            gas: 0u8.into(),
+            value: 0u8.into(),
+        }
     }
 }

@@ -7,7 +7,7 @@ use fvm_shared::{IPLD_RAW, MethodNum, address::Address, sys::SendFlags};
 
 use crate::interpreter::{
     CallKind,
-    precompiles::{PrecompileContext, is_reserved_precompile_address, Precompiles},
+    precompiles::{PrecompileContext, Precompiles, is_reserved_precompile_address},
 };
 
 use super::ext::{ContractType, get_contract_type, get_evm_bytecode_cid};

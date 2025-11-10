@@ -1,12 +1,12 @@
 mod asm;
 mod util;
 
-use fvm_shared::{address::Address as FILAddress, econ::TokenAmount, error::ExitCode, METHOD_SEND};
+use fvm_shared::{METHOD_SEND, address::Address as FILAddress, econ::TokenAmount, error::ExitCode};
 
 use p256::ecdsa::signature::hazmat::PrehashSigner;
 use p256::ecdsa::{Signature, SigningKey, VerifyingKey};
-use rand::{RngCore, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
 
 fn p256_input() -> Vec<u8> {
     let mut rng = StdRng::seed_from_u64(7212);
@@ -157,8 +157,11 @@ fn rip7212_call_with_value_transfers_on_success() {
     let mut expected = [0u8; 32];
     expected[31] = 1;
 
-    let addr = fil_actors_evm_shared::address::EthAddress(hex_literal::hex!("0000000000000000000000000000000000000100"));
-    let fil_addr = FILAddress::new_delegated(fil_actors_runtime::EAM_ACTOR_ID, addr.as_ref()).unwrap();
+    let addr = fil_actors_evm_shared::address::EthAddress(hex_literal::hex!(
+        "0000000000000000000000000000000000000100"
+    ));
+    let fil_addr =
+        FILAddress::new_delegated(fil_actors_runtime::EAM_ACTOR_ID, addr.as_ref()).unwrap();
     rt.expect_send_simple(
         fil_addr,
         METHOD_SEND,

@@ -21,8 +21,8 @@ use bls12_381::{
     bls12_pairing,
 };
 use evm::{blake2f, ec_add, ec_mul, ec_pairing, ec_recover, identity, modexp, ripemd160, sha256};
-use p256::p256_verify;
 use fvm::{call_actor, call_actor_id, get_randomness, lookup_delegated_address, resolve_address};
+use p256::p256_verify;
 
 type PrecompileFn<RT> = fn(&mut System<RT>, &[u8], PrecompileContext) -> PrecompileResult;
 pub type PrecompileResult = Result<Vec<u8>, PrecompileError>;
@@ -94,7 +94,11 @@ impl<RT: Runtime> Precompiles<RT> {
 
     fn lookup_precompile(addr: &EthAddress) -> Option<PrecompileFn<RT>> {
         // Special-case RIP-7212 precompile at 0x...0100
-        if addr.0[0] == 0x00 && addr.0[1..18] == [0u8; 17] && addr.0[18] == 0x01 && addr.0[19] == 0x00 {
+        if addr.0[0] == 0x00
+            && addr.0[1..18] == [0u8; 17]
+            && addr.0[18] == 0x01
+            && addr.0[19] == 0x00
+        {
             return Some(p256_verify::<RT>);
         }
 
@@ -204,7 +208,6 @@ pub struct PrecompileContext {
     pub gas: U256,
     pub value: U256,
 }
-
 
 #[cfg(test)]
 mod test {

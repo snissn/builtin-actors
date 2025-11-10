@@ -46,6 +46,7 @@ fil_actor_power = { workspace = true, features = ["fil-actor"] }
 fil_actor_reward = { workspace = true, features = ["fil-actor"] }
 fil_actor_system = { workspace = true, features = ["fil-actor"] }
 fil_actor_verifreg = { workspace = true, features = ["fil-actor"] }
+getrandom = { version = "0.2.15", features = ["js"] }
 
 [build-dependencies]
 fil_actor_bundler = "8.0.0"
