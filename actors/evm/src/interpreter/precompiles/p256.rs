@@ -13,9 +13,11 @@ use p256::ecdsa::{self, Signature, VerifyingKey};
 ///  - 32: s
 ///  - 32: x
 ///  - 32: y
+///
 /// Output:
-///  - On success: 32-byte big-endian integer 1
-///  - On failure: empty
+///
+/// - On success: 32-byte big-endian integer 1
+/// - On failure: empty
 pub fn p256_verify<RT: Runtime>(_: &mut System<RT>, input: &[u8], _: PrecompileContext) -> PrecompileResult {
     if input.len() != 160 {
         return Ok(Vec::new());
