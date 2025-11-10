@@ -45,17 +45,16 @@ pub fn is_reserved_precompile_address(addr: &EthAddress) -> bool {
     if !(prefix == 0x00 || prefix == NATIVE_PRECOMPILE_ADDRESS_PREFIX) {
         return false;
     }
-    // For extended (2-byte) index support, allow the second-to-last byte to be non-zero.
-    // Therefore, bytes[1..18] must be zeroes.
-    if bytes[1..18] != [0u8; 17] {
-        return false;
-    }
-    // Support legacy 1-byte indices (0x..01..11 etc.).
+    // 1-byte index case: last byte > 0 and bytes[1..19] all zeros.
     if bytes[19] > 0 {
-        return true;
+        return bytes[1..19] == [0u8; 18];
     }
-    // Support 2-byte index starting at 0x0100 (RIP precompile range start).
-    bytes[18] > 0
+    // 2-byte index case (EVM-only): bytes[1..18] zeros and second-to-last byte > 0.
+    if prefix == 0x00 {
+        return bytes[1..18] == [0u8; 17] && bytes[18] > 0;
+    }
+    // Native (0xFE) does not support 2-byte indices.
+    false
 }
 
 pub struct Precompiles<RT>(PhantomData<RT>);
