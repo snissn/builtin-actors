@@ -45,16 +45,17 @@ pub fn is_reserved_precompile_address(addr: &EthAddress) -> bool {
     if !(prefix == 0x00 || prefix == NATIVE_PRECOMPILE_ADDRESS_PREFIX) {
         return false;
     }
-    if bytes[1..19] != [0u8; 18] {
+    // For extended (2-byte) index support, allow the second-to-last byte to be non-zero.
+    // Therefore, bytes[1..18] must be zeroes.
+    if bytes[1..18] != [0u8; 17] {
         return false;
     }
     // Support legacy 1-byte indices (0x..01..11 etc.).
     if bytes[19] > 0 {
         return true;
     }
-    // Support RIP precompile address 0x0100 (0x..01 00). Keep scope narrow to avoid
-    // unintentionally reserving future addresses without explicit registration.
-    bytes == hex_literal::hex!("0000000000000000000000000000000000000100")
+    // Support 2-byte index starting at 0x0100 (RIP precompile range start).
+    bytes[18] > 0
 }
 
 pub struct Precompiles<RT>(PhantomData<RT>);
@@ -94,7 +95,7 @@ impl<RT: Runtime> Precompiles<RT> {
 
     fn lookup_precompile(addr: &EthAddress) -> Option<PrecompileFn<RT>> {
         // Special-case RIP-7212 precompile at 0x...0100
-        if addr.0 == hex_literal::hex!("0000000000000000000000000000000000000100") {
+        if addr.0[0] == 0x00 && addr.0[1..18] == [0u8; 17] && addr.0[18] == 0x01 && addr.0[19] == 0x00 {
             return Some(p256_verify::<RT>);
         }
 
@@ -234,6 +235,13 @@ mod test {
         let addr = EthAddress(hex_literal::hex!("ff00000000000000000000000000000000000001"));
         assert!(!Precompiles::<MockRuntime>::is_precompile(&addr));
         assert!(!is_reserved_precompile_address(&addr));
+    }
+
+    #[test]
+    fn is_rip_7212_precompile() {
+        let addr = EthAddress(hex_literal::hex!("0000000000000000000000000000000000000100"));
+        assert!(Precompiles::<MockRuntime>::is_precompile(&addr));
+        assert!(is_reserved_precompile_address(&addr));
     }
 
     #[test]

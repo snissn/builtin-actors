@@ -7,7 +7,7 @@ use fvm_shared::{IPLD_RAW, MethodNum, address::Address, sys::SendFlags};
 
 use crate::interpreter::{
     CallKind,
-    precompiles::{PrecompileContext, is_reserved_precompile_address},
+    precompiles::{PrecompileContext, is_reserved_precompile_address, Precompiles},
 };
 
 use super::ext::{ContractType, get_contract_type, get_evm_bytecode_cid};
@@ -181,10 +181,10 @@ pub fn call_generic<RT: Runtime>(
                 if input_data.len() > 512 {
                     input_hex.push_str("[..]")
                 }
-                log::info!(target: "evm", "Call Precompile:\n\taddress: {:x?}\n\tcontext: {:?}\n\tinput: {}", dst, context, input_hex);
+                log::info!(target: "evm", "Call Precompile:\n\taddress: {:x?}\n\tcontext: {:?}\n\tinput_len: {}\n\tinput: {}", dst, context, input_data.len(), input_hex);
             }
 
-            match precompiles::Precompiles::call_precompile(system, &dst, input_data, context) {
+            match Precompiles::call_precompile(system, &dst, input_data, context) {
                 Ok(return_data) => (1, return_data),
                 Err(err) => {
                     log::warn!(target: "evm", "call to precompile {} failed: {}", &dst, err);
