@@ -1,7 +1,4 @@
-use crate::interpreter::{
-    precompiles::{PrecompileContext, PrecompileError, PrecompileResult},
-    System,
-};
+use crate::interpreter::{precompiles::{PrecompileContext, PrecompileResult}, System};
 use fil_actors_runtime::runtime::Runtime;
 
 // p256 + ecdsa

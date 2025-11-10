@@ -17,7 +17,6 @@ use {
     crate::interpreter::ExecutionState,
     crate::interpreter::System,
     crate::interpreter::instructions::memory::MemoryRegion,
-    crate::interpreter::precompiles,
     crate::{DelegateCallParams, Method},
     fil_actors_runtime::ActorError,
     fil_actors_runtime::runtime::Runtime,
