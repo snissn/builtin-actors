@@ -14,12 +14,14 @@ mod bls12_381;
 mod bls_util;
 mod evm;
 mod fvm;
+mod p256;
 
 use bls12_381::{
     bls12_g1add, bls12_g1msm, bls12_g2add, bls12_g2msm, bls12_map_fp_to_g1, bls12_map_fp2_to_g2,
     bls12_pairing,
 };
 use evm::{blake2f, ec_add, ec_mul, ec_pairing, ec_recover, identity, modexp, ripemd160, sha256};
+use p256::p256_verify;
 use fvm::{call_actor, call_actor_id, get_randomness, lookup_delegated_address, resolve_address};
 
 type PrecompileFn<RT> = fn(&mut System<RT>, &[u8], PrecompileContext) -> PrecompileResult;
@@ -38,10 +40,21 @@ impl<RT: Runtime, const N: usize> PrecompileTable<RT, N> {
 }
 
 pub fn is_reserved_precompile_address(addr: &EthAddress) -> bool {
-    let [prefix, middle @ .., index] = addr.0;
-    (prefix == 0x00 || prefix == NATIVE_PRECOMPILE_ADDRESS_PREFIX)
-        && middle == [0u8; 18]
-        && index > 0
+    let bytes = addr.0;
+    let prefix = bytes[0];
+    if !(prefix == 0x00 || prefix == NATIVE_PRECOMPILE_ADDRESS_PREFIX) {
+        return false;
+    }
+    if bytes[1..19] != [0u8; 18] {
+        return false;
+    }
+    // Support legacy 1-byte indices (0x..01..11 etc.).
+    if bytes[19] > 0 {
+        return true;
+    }
+    // Support RIP precompile address 0x0100 (0x..01 00). Keep scope narrow to avoid
+    // unintentionally reserving future addresses without explicit registration.
+    bytes == hex_literal::hex!("0000000000000000000000000000000000000100")
 }
 
 pub struct Precompiles<RT>(PhantomData<RT>);
@@ -80,6 +93,11 @@ impl<RT: Runtime> Precompiles<RT> {
     ]);
 
     fn lookup_precompile(addr: &EthAddress) -> Option<PrecompileFn<RT>> {
+        // Special-case RIP-7212 precompile at 0x...0100
+        if addr.0 == hex_literal::hex!("0000000000000000000000000000000000000100") {
+            return Some(p256_verify::<RT>);
+        }
+
         let [prefix, _m @ .., index] = addr.0;
         if is_reserved_precompile_address(addr) {
             let index = index as usize - 1;
@@ -186,6 +204,7 @@ pub struct PrecompileContext {
     pub gas: U256,
     pub value: U256,
 }
+
 
 #[cfg(test)]
 mod test {
