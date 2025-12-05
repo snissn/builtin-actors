@@ -1,0 +1,7 @@
+target
+*.wat
+*.wasm
+.idea/
+.vscode/
+**/.DS_Store
+output/*
